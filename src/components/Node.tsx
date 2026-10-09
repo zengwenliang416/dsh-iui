@@ -2,15 +2,21 @@ import type { CSSProperties } from 'react'
 import type {
   ButtonProps,
   ChartProps,
+  ChecklistProps,
   FormProps,
   IuiActionEvent,
   IuiNode,
   LayoutProps,
+  StatProps,
+  TableProps,
   TextProps,
 } from '../types/ir'
 import { ButtonView } from './Button'
 import { ChartView } from './Chart'
+import { ChecklistView } from './Checklist'
 import { FormView } from './Form'
+import { StatView } from './Stat'
+import { TableView } from './Table'
 import { TextView } from './Text'
 
 export type RenderCtx = {
@@ -104,6 +110,32 @@ export function NodeView({ node, ctx }: { node: IuiNode; ctx: RenderCtx }) {
     return (
       <div data-iui-type="text" data-iui-key={node.key} className="iui-node">
         <TextView props={node.props as TextProps} />
+      </div>
+    )
+  }
+  if (node.type === 'checklist') {
+    return (
+      <div data-iui-type="checklist" data-iui-key={node.key} className="iui-node">
+        <ChecklistView
+          nodeKey={node.key}
+          sessionId={ctx.sessionId}
+          props={node.props as ChecklistProps}
+          onAction={ctx.onAction}
+        />
+      </div>
+    )
+  }
+  if (node.type === 'stat') {
+    return (
+      <div data-iui-type="stat" data-iui-key={node.key} className="iui-node">
+        <StatView props={node.props as StatProps} />
+      </div>
+    )
+  }
+  if (node.type === 'table') {
+    return (
+      <div data-iui-type="table" data-iui-key={node.key} className="iui-node">
+        <TableView props={node.props as TableProps} />
       </div>
     )
   }

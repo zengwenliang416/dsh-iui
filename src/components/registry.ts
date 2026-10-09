@@ -9,6 +9,9 @@ export const COMPONENT_WHITELIST: ReadonlySet<IuiType> = new Set([
   'row',
   'col',
   'text',
+  'checklist',
+  'stat',
+  'table',
 ])
 
 export function isRenderableType(type: IuiType): boolean {

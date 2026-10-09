@@ -1,0 +1,4 @@
+- insert:
+    # Host fiber only. Browser client loads via package.json dsh.client + ./client export.
+    - id: dsh-iui-host
+      name: dsh-iui/host

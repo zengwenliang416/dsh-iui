@@ -77,7 +77,18 @@ check('Acc5.jev-on-does-not-overwrite-valid-type', keepOps[0]?.op === 'upsert' &
 const skillMod = await import('../src/host/skill.ts')
 const skillOk = skillMod.DSH_IUI_SKILL_BODY.includes('"type": "chart"') && skillMod.DSH_IUI_SKILL_BODY.includes('"type": "row"') && skillMod.DSH_IUI_SKILL_BODY.includes('You own the layout') && !/"type":\s*"pending"/.test(skillMod.DSH_IUI_SKILL_BODY)
 check('Acc5.skill-teaches-concrete-type', skillOk)
+check('Acc5.skill-when-to-emit-decision-table', skillMod.DSH_IUI_SKILL_BODY.includes('When to emit UI') && skillMod.DSH_IUI_SKILL_BODY.includes('Negative examples') && skillMod.DSH_IUI_SKILL_BODY.includes('checklist') && skillMod.DSH_IUI_SKILL_BODY.includes('stat') && skillMod.DSH_IUI_SKILL_BODY.includes('table'))
 
+// --- Acc6: P0 checklist/stat/table compile passthrough (Jev off) ---
+const p0Body = '```dsh-iui\n{"blocks":[{"key":"steps","type":"checklist","props":{"title":"roast","local":true,"items":[{"id":"a","label":"prep","done":false}]}},{"key":"kpis","type":"stat","props":{"items":[{"label":"RPS","value":"1k","delta":"+1%"}]}},{"key":"tbl","type":"table","props":{"columns":["A","B"],"rows":[[1,2]]}}]}\n```'
+const p0Payloads = parseStreamingPayloads(p0Body)
+const { ops: p0Ops } = await compilePayloadsToOps(p0Payloads, new Set(), { jevEnabled: false })
+let p0Forest = applyOps([], p0Ops)
+const p0Types = new Set()
+const walkP0 = (n) => { p0Types.add(n.type); (n.children||[]).forEach(walkP0) }
+p0Forest.forEach(walkP0)
+check('Acc6.checklist-stat-table-passthrough', p0Types.has('checklist') && p0Types.has('stat') && p0Types.has('table'), `types=${[...p0Types]}`)
+check('Acc6.whitelist-has-p0', COMPONENT_WHITELIST.has('checklist') && COMPONENT_WHITELIST.has('stat') && COMPONENT_WHITELIST.has('table'))
 
 // --- Acc2: action roundtrip trackable ---
 let actionHit = null

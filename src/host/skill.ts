@@ -1,77 +1,10 @@
-/** Embedded skill body: teach the main model to emit full dsh-iui IR (type + layout). */
+/** Embedded skill body: teach full IR + when-to-emit UI. */
 export const DSH_IUI_SKILL_NAME = 'dsh-iui'
 
 export const DSH_IUI_SKILL_DESCRIPTION =
-  'Emit declarative Interactive UI with full type + nested layout in DSH replies.'
+  'Emit declarative Interactive UI (type+layout; checklist/stat/table; when-to-emit).'
 
-export const DSH_IUI_SKILL_BODY = `
-# dsh-iui
-
-When the user would benefit from interactive UI in the reply, emit a fenced block.
-**You own the layout and component types.** Every block must set a concrete whitelist
-\`type\` yourself — do **not** leave \`type\` omitted or \`"pending"\`.
-
-Allowed \`type\` values: \`chart\` | \`form\` | \`button\` | \`text\` | \`row\` | \`col\`.
-
-Use \`row\` / \`col\` with \`children\` to compose multi-block layouts (side-by-side, nested).
-
-## Fence
-
-\`\`\`dsh-iui
-{
-  "blocks": [
-    {
-      "key": "layout-1",
-      "type": "row",
-      "props": { "gap": 12 },
-      "children": [
-        {
-          "key": "sales",
-          "type": "chart",
-          "props": {
-            "title": "近四周销量",
-            "series": [{ "name": "销量", "points": [{ "x": "W1", "y": 12 }, { "x": "W2", "y": 18 }] }]
-          }
-        },
-        {
-          "key": "prefs",
-          "type": "form",
-          "props": {
-            "fields": [
-              { "name": "city", "label": "城市", "kind": "text" },
-              { "name": "plan", "label": "方案", "kind": "select", "options": ["基础", "进阶"] }
-            ],
-            "submitAction": "save_prefs"
-          }
-        }
-      ]
-    },
-    {
-      "key": "go",
-      "type": "button",
-      "props": { "label": "继续", "action": "continue" }
-    }
-  ]
-}
-\`\`\`
-
-## Props (minimal)
-
-- chart: \`{ "title?", "series": [{ "name?", "points": [{ "x", "y" }] }] }\`
-- form: \`{ "fields": [{ "name", "label?", "kind?", "options?" }], "values?", "submitAction?", "submitLabel?" }\`
-- button: \`{ "label", "action", "payload?" }\`
-- text: \`{ "content" }\`
-- row / col: \`{ "gap?" }\` plus \`children\` (nested payloads, each with its own \`type\`)
-
-## Rules
-
-1. Every block (including children) must include a concrete whitelist \`type\` and stable \`key\`.
-2. Prefer nesting under \`row\`/\`col\` when showing chart + form/button together.
-3. Never emit arbitrary HTML or scripts.
-4. Markdown prose stays outside the fence; UI blocks go inside.
-5. After the user clicks/submits, you will receive a \`[dsh-iui action]\` block — continue the conversation from it.
-6. Read \`[dsh-iui session-state]\` when present to reuse prior form values / selections.
-`.trim()
+export const DSH_IUI_SKILL_BODY = "# dsh-iui\n\nWhen the user would benefit from interactive UI in the reply, emit a fenced block.\n**You own the layout and component types.** Every block must set a concrete whitelist\n`type` yourself \u2014 do **not** leave `type` omitted or `\"pending\"`.\n\nAllowed `type` values: `chart` | `form` | `button` | `text` | `row` | `col` | `checklist` | `stat` | `table`.\n\nUse `row` / `col` with `children` to compose multi-block layouts (side-by-side, nested).\n\n## When to emit UI (decision table)\n\n| Situation | Emit UI? | Preferred types |\n| --- | --- | --- |\n| Multi-step recipe / procedure the user will tick off | Yes | `checklist` (+ optional `text`) |\n| Dashboard / KPI / comparison numbers | Yes | `stat`, optionally `table` or `chart` |\n| Tabular facts (schedules, rankings, AA split) | Yes | `table` |\n| Collect structured input or one clear CTA | Yes | `form` / `button` |\n| Numeric trend over categories or time | Yes | `chart` |\n| Pure Q&A, definition, one-sentence thanks/ack | **No** | markdown only |\n| User only asked for prose explanation | **No** | markdown only |\n| Ambiguous one-liner with no structure to interact with | **No** | markdown only |\n\n### Negative examples (do **not** wrap in `dsh-iui`)\n\n- \"\u8c22\u8c22\" / \"\u597d\u7684\uff0c\u6536\u5230\" / \"\u660e\u767d\u4e86\"\n- \"\u4ec0\u4e48\u662f HTTP\uff1f\" with a short paragraph answer\n- A single clarifying question back to the user with no controls\n\n## Fence (layout + chart/form)\n\n```dsh-iui\n{\n  \"blocks\": [\n    {\n      \"key\": \"layout-1\",\n      \"type\": \"row\",\n      \"props\": { \"gap\": 12 },\n      \"children\": [\n        {\n          \"key\": \"sales\",\n          \"type\": \"chart\",\n          \"props\": {\n            \"title\": \"\u8fd1\u56db\u5468\u9500\u91cf\",\n            \"series\": [{ \"name\": \"\u9500\u91cf\", \"points\": [{ \"x\": \"W1\", \"y\": 12 }, { \"x\": \"W2\", \"y\": 18 }] }]\n          }\n        },\n        {\n          \"key\": \"prefs\",\n          \"type\": \"form\",\n          \"props\": {\n            \"fields\": [\n              { \"name\": \"city\", \"label\": \"\u57ce\u5e02\", \"kind\": \"text\" },\n              { \"name\": \"plan\", \"label\": \"\u65b9\u6848\", \"kind\": \"select\", \"options\": [\"\u57fa\u7840\", \"\u8fdb\u9636\"] }\n            ],\n            \"submitAction\": \"save_prefs\"\n          }\n        }\n      ]\n    }\n  ]\n}\n```\n\n## Fence (roast-style checklist)\n\n```dsh-iui\n{\n  \"blocks\": [\n    {\n      \"key\": \"roast-steps\",\n      \"type\": \"checklist\",\n      \"props\": {\n        \"title\": \"Sunday roast\",\n        \"local\": true,\n        \"items\": [\n          { \"id\": \"prep\", \"label\": \"Preheat oven to 200\u00b0C\", \"done\": false },\n          { \"id\": \"veg\", \"label\": \"Prep vegetables\", \"done\": false },\n          { \"id\": \"rest\", \"label\": \"Rest meat 15 min\", \"done\": false }\n        ]\n      }\n    }\n  ]\n}\n```\n\nChecklist toggles are **local by default** (`local: true`): they persist session state and do **not** call the model unless an item sets `action`.\n\n## Fence (monitor card: stat + table)\n\n```dsh-iui\n{\n  \"blocks\": [\n    {\n      \"key\": \"monitor\",\n      \"type\": \"col\",\n      \"props\": { \"gap\": 12 },\n      \"children\": [\n        {\n          \"key\": \"kpis\",\n          \"type\": \"stat\",\n          \"props\": {\n            \"items\": [\n              { \"label\": \"Requests\", \"value\": \"12.4k\", \"delta\": \"+8%\" },\n              { \"label\": \"Error rate\", \"value\": \"0.2%\", \"delta\": \"-0.1%\" }\n            ]\n          }\n        },\n        {\n          \"key\": \"top\",\n          \"type\": \"table\",\n          \"props\": {\n            \"title\": \"Top routes\",\n            \"columns\": [\"Route\", \"p95\", \"Errors\"],\n            \"rows\": [[\"/api/chat\", \"120ms\", 2], [\"/api/ops\", \"80ms\", 0]]\n          }\n        }\n      ]\n    }\n  ]\n}\n```\n\n## Props (minimal)\n\n- chart: `{ \"title?\", \"series\": [{ \"name?\", \"points\": [{ \"x\", \"y\" }] }] }`\n- form: `{ \"fields\": [{ \"name\", \"label?\", \"kind?\", \"options?\" }], \"values?\", \"submitAction?\", \"submitLabel?\" }`\n- button: `{ \"label\", \"action\", \"payload?\" }`\n- text: `{ \"content\" }`\n- row / col: `{ \"gap?\" }` plus `children`\n- checklist: `{ \"title?\", \"local?\", \"items\": [{ \"id\", \"label\", \"done?\", \"action?\" }] }`\n- stat: `{ \"items\": [{ \"label\", \"value\", \"delta?\" }] }` or single `{ \"label\", \"value\", \"delta?\" }`\n- table: `{ \"title?\", \"columns\": string[], \"rows\": (string|number)[][] }`\n\n## Rules\n\n1. Every block (including children) must include a concrete whitelist `type` and stable `key`.\n2. Prefer nesting under `row`/`col` when showing multiple blocks together.\n3. Never emit arbitrary HTML or scripts.\n4. Markdown prose stays outside the fence; UI blocks go inside.\n5. After the user clicks/submits (non-local), you will receive a `[dsh-iui action]` block \u2014 continue from it.\n6. Read `[dsh-iui session-state]` when present to reuse prior form values / checklist / selections."
 
 export function renderSkillContent(): string {
   return `<skill_content name="${DSH_IUI_SKILL_NAME}">\n${DSH_IUI_SKILL_BODY}\n</skill_content>`

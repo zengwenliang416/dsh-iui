@@ -6,7 +6,7 @@ import { createHostBridge } from '../src/host/bridge'
 import { compilePayloadsToOps } from '../src/host/compile'
 import { parseStreamingPayloads } from '../src/host/parseFence'
 import { dumpSessionState } from '../src/state/sessionStore'
-import type { IuiActionEvent } from '../types/ir'
+import type { IuiActionEvent } from '../src/types/ir'
 import '../src/components/styles.css'
 import './demo.css'
 
@@ -37,7 +37,26 @@ const PENDING_CHUNKS = [
   '  ]\n}\n```\n',
 ]
 
-type Mode = 'layout' | 'pending'
+/** P0: roast-style checklist (local toggles). */
+const ROAST_CHUNKS = [
+  'Sunday roast 步骤：勾选后仅写本地状态，默认不回模型。\n\n```dsh-iui\n{\n  "blocks": [\n',
+  '    {\n      "key": "roast-intro",\n      "type": "text",\n      "props": { "content": "烤鸡周日套餐 — 按顺序勾选步骤（本地持久，不回模型）。" }\n    },\n',
+  '    {\n      "key": "roast-steps",\n      "type": "checklist",\n      "props": {\n        "title": "Sunday roast",\n        "local": true,\n        "items": [\n          { "id": "s1", "label": "预热烤箱到 180°C", "done": false },\n          { "id": "s2", "label": "腌制鸡腿 30 分钟", "done": false },\n          { "id": "s3", "label": "烤 45 分钟，中途翻面", "done": false },\n          { "id": "s4", "label": "静置 10 分钟再切", "done": false },\n          { "id": "s5", "label": "配菜上桌", "done": false }\n        ]\n      }\n    }\n',
+  '  ]\n}\n```\n',
+]
+
+/** P0: monitoring card — stat + table coexisting. */
+const MONITOR_CHUNKS = [
+  '本轮监控卡：stat 指标 + table 明细，可与现有类型同树。\n\n```dsh-iui\n{\n  "blocks": [\n',
+  '    {\n      "key": "mon-intro",\n      "type": "text",\n      "props": { "content": "服务健康总览（stat + table）。" }\n    },\n',
+  '    {\n      "key": "mon-row",\n      "type": "row",\n      "props": { "gap": 16, "align": "stretch", "wrap": true },\n      "children": [\n',
+  '        {\n          "key": "mon-stats",\n          "type": "stat",\n          "props": {\n            "items": [\n              { "label": "QPS", "value": "1.2k", "delta": "+8%" },\n              { "label": "错误率", "value": "0.12%", "delta": "-0.03%" },\n              { "label": "P99", "value": "186ms", "delta": "+12ms" }\n            ]\n          }\n        },\n',
+  '        {\n          "key": "mon-table",\n          "type": "table",\n          "props": {\n            "title": "近 1h 实例",\n            "columns": ["实例", "CPU", "内存", "状态"],\n            "rows": [\n              ["api-a", "42%", "1.1G", "ok"],\n              ["api-b", "61%", "1.4G", "ok"],\n              ["worker-1", "28%", "900M", "ok"]\n            ]\n          }\n        }\n',
+  '      ]\n    }\n',
+  '  ]\n}\n```\n',
+]
+
+type Mode = 'layout' | 'pending' | 'roast' | 'monitor'
 
 function App() {
   const bridge = useMemo(() => {
@@ -53,7 +72,14 @@ function App() {
   const [tick, setTick] = useState(0)
   const prevKeys = useRef(new Set<string>())
 
-  const chunks = mode === 'layout' ? LAYOUT_CHUNKS : PENDING_CHUNKS
+  const chunks =
+    mode === 'layout'
+      ? LAYOUT_CHUNKS
+      : mode === 'pending'
+        ? PENDING_CHUNKS
+        : mode === 'roast'
+          ? ROAST_CHUNKS
+          : MONITOR_CHUNKS
 
   const pushLog = useCallback((line: string) => {
     setLog((L) => [line, ...L].slice(0, 12))
@@ -149,6 +175,34 @@ function App() {
     }
   }
 
+  const playRoastSample = async () => {
+    clearForest()
+    setMode('roast')
+    setLog(['roast 步骤 checklist'])
+    let text = ''
+    for (let i = 0; i < ROAST_CHUNKS.length; i++) {
+      text += ROAST_CHUNKS[i]
+      setBuf(text)
+      setChunk(i + 1)
+      await compileFrom(text, 'checklist 本地勾选')
+      await new Promise((r) => setTimeout(r, 160))
+    }
+  }
+
+  const playMonitorSample = async () => {
+    clearForest()
+    setMode('monitor')
+    setLog(['监控卡 stat+table'])
+    let text = ''
+    for (let i = 0; i < MONITOR_CHUNKS.length; i++) {
+      text += MONITOR_CHUNKS[i]
+      setBuf(text)
+      setChunk(i + 1)
+      await compileFrom(text, 'stat+table')
+      await new Promise((r) => setTimeout(r, 160))
+    }
+  }
+
   const persisted = useMemo(() => dumpSessionState(SESSION), [events, tick])
 
   return (
@@ -166,6 +220,12 @@ function App() {
         <button type="button" onClick={() => void playPendingSample()}>
           旧 pending 流式
         </button>
+        <button type="button" onClick={() => void playRoastSample()}>
+          roast 步骤 checklist
+        </button>
+        <button type="button" onClick={() => void playMonitorSample()}>
+          监控卡 stat+table
+        </button>
         <button type="button" onClick={() => void streamNext()}>
           下一步流式
         </button>
@@ -176,7 +236,7 @@ function App() {
           清空
         </button>
         <span className="meta">
-          {mode === 'layout' ? '完整 IR' : 'pending'} · chunk {chunk}/{chunks.length}
+          {mode === 'layout' ? '完整 IR' : mode === 'pending' ? 'pending' : mode === 'roast' ? 'checklist' : 'stat+table'} · chunk {chunk}/{chunks.length}
         </span>
       </div>
       <div className="grid">

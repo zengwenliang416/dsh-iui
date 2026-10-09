@@ -12,7 +12,7 @@ export type CompileOptions = DecideTypeOptions & {
   mainModelFallback?: (payload: IuiPayload) => Promise<IuiType | null> | IuiType | null
 }
 
-const RENDERABLE = new Set<IuiType>(['chart', 'form', 'button', 'row', 'col', 'text'])
+const RENDERABLE = new Set<IuiType>(['chart', 'form', 'button', 'row', 'col', 'text', 'checklist', 'stat', 'table'])
 
 function whitelistType(type: IuiType): IuiType | 'none' {
   if (type === 'pending') return 'none'

@@ -7,6 +7,9 @@ export type IuiType =
   | 'row'
   | 'col'
   | 'text'
+  | 'checklist'
+  | 'stat'
+  | 'table'
   | 'pending'
   | 'none'
 
@@ -51,7 +54,50 @@ export type LayoutProps = {
   minWidth?: number
 }
 
-export type IuiProps = ChartProps | FormProps | ButtonProps | TextProps | LayoutProps | Record<string, unknown>
+export type ChecklistItem = {
+  id: string
+  label: string
+  done?: boolean
+  /** When set, toggle also emits action; default local-only. */
+  action?: string
+}
+
+export type ChecklistProps = {
+  title?: string
+  items: ChecklistItem[]
+  /** Default true: toggle writes local session state only, does not call the model. */
+  local?: boolean
+}
+
+export type StatItem = {
+  label: string
+  value: string | number
+  delta?: string | number
+}
+
+export type StatProps = {
+  items?: StatItem[]
+  label?: string
+  value?: string | number
+  delta?: string | number
+}
+
+export type TableProps = {
+  title?: string
+  columns: string[]
+  rows: Array<Array<string | number>>
+}
+
+export type IuiProps =
+  | ChartProps
+  | FormProps
+  | ButtonProps
+  | TextProps
+  | LayoutProps
+  | ChecklistProps
+  | StatProps
+  | TableProps
+  | Record<string, unknown>
 
 export type IuiNode = {
   key: string
@@ -83,5 +129,7 @@ export type IuiActionEvent = {
 export type SessionStateSlice = {
   formValues?: Record<string, string | number>
   selected?: string | number
+  /** checklist item id → done */
+  checklistDone?: Record<string, boolean>
   [k: string]: unknown
 }

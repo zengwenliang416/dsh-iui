@@ -56,7 +56,48 @@ const MONITOR_CHUNKS = [
   '  ]\n}\n```\n',
 ]
 
-type Mode = 'layout' | 'pending' | 'roast' | 'monitor'
+/** Slider + bind: guests → portions. */
+const PEOPLE_CHUNKS = [
+  '用餐人数联动份量：拖动滑块只写本地状态，兄弟节点按 bind 重算。\n\n```dsh-iui\n{\n  "blocks": [\n',
+  '    {\n      "key": "party",\n      "type": "col",\n      "props": { "gap": 12 },\n      "children": [\n',
+  '        {\n          "key": "party-intro",\n          "type": "text",\n          "props": { "content": "人数 → 份量（slider + 本地 bind，不回模型）。" }\n        },\n',
+  '        {\n          "key": "guests-form",\n          "type": "form",\n          "props": {\n            "local": true,\n            "fields": [\n              {\n                "id": "guests",\n                "type": "slider",\n                "label": "用餐人数",\n                "min": 1,\n                "max": 12,\n                "step": 1,\n                "value": 4,\n                "local": true\n              }\n            ]\n          }\n        },\n',
+  '        {\n          "key": "portions",\n          "type": "stat",\n          "props": { "label": "建议份量", "value": 8 },\n          "bind": { "from": "guests", "to": "value", "scale": 2, "offset": 0 }\n        },\n',
+  '        {\n          "key": "portions-hint",\n          "type": "text",\n          "props": { "content": "8" },\n          "bind": { "from": "guests", "to": "content", "expr": "2 * $from + 0" }\n        }\n',
+  '      ]\n    }\n',
+  '  ]\n}\n```\n',
+]
+
+/** Slider + bind: principal / months → yield. */
+const SAVINGS_CHUNKS = [
+  '储蓄器：本金/月数滑块本地联动收益。\n\n```dsh-iui\n{\n  "blocks": [\n',
+  '    {\n      "key": "savings",\n      "type": "col",\n      "props": { "gap": 12 },\n      "children": [\n',
+  '        {\n          "key": "savings-intro",\n          "type": "text",\n          "props": { "content": "本金 → 预估收益（线性 bind）；月数本地显示。" }\n        },\n',
+  '        {\n          "key": "savings-form",\n          "type": "form",\n          "props": {\n            "local": true,\n            "fields": [\n              {\n                "id": "principal",\n                "type": "slider",\n                "label": "本金",\n                "min": 1000,\n                "max": 50000,\n                "step": 500,\n                "value": 10000,\n                "local": true\n              },\n              {\n                "id": "months",\n                "type": "slider",\n                "label": "月数",\n                "min": 1,\n                "max": 36,\n                "step": 1,\n                "value": 12,\n                "local": true\n              }\n            ]\n          }\n        },\n',
+  '        {\n          "key": "interest",\n          "type": "stat",\n          "props": { "label": "预估收益", "value": 300 },\n          "bind": { "from": "principal", "to": "value", "expr": "0.03 * $from + 0" }\n        },\n',
+  '        {\n          "key": "term",\n          "type": "stat",\n          "props": { "label": "存期（月）", "value": 12 },\n          "bind": { "from": "months", "to": "value", "scale": 1, "offset": 0 }\n        }\n',
+  '      ]\n    }\n',
+  '  ]\n}\n```\n',
+]
+
+
+/** Diagram + hotspot: bicycle five systems. */
+const DIAGRAM_CHUNKS = [
+  '自行车五系统图解：点击分区本地高亮与说明，默认不回模型。\n\n```dsh-iui\n{\n  "blocks": [\n',
+  '    {\n      "key": "bike",\n      "type": "row",\n      "props": { "gap": 16, "align": "stretch", "wrap": true },\n      "children": [\n',
+  '        {\n          "key": "bike-diagram",\n          "type": "diagram",\n          "props": {\n            "title": "自行车五系统",\n            "local": true,\n            "selectedId": "drive",\n            "regions": [\n              { "id": "drive", "label": "传动", "x": 150, "y": 130, "w": 90, "h": 70, "body": "牙盘、链条、飞轮：把腿力传到后轮。" },\n              { "id": "brake", "label": "刹车", "x": 40, "y": 40, "w": 80, "h": 50, "body": "手闸与夹器：前后轮制动，点刹优于死刹。" },\n              { "id": "wheel", "label": "车轮", "x": 280, "y": 150, "w": 90, "h": 80, "body": "轮圈、辐条、轮胎：承重与滚动；胎压影响滚阻。" },\n              { "id": "frame", "label": "车架", "x": 140, "y": 50, "w": 100, "h": 55, "body": "主三角与后下叉：几何决定舒适与操控。" },\n              { "id": "gear", "label": "变速", "x": 250, "y": 40, "w": 80, "h": 50, "body": "拨链器与手变：按坡度选齿比，避免跨链。" }\n            ]\n          }\n        },\n',
+  '        {\n          "key": "bike-side",\n          "type": "col",\n          "props": { "gap": 10 },\n          "children": [\n',
+  '            { "key": "hs-drive", "type": "hotspot", "props": { "id": "drive", "label": "传动系统", "body": "踩踏 → 牙盘 → 链条 → 飞轮 → 后轮。保持链条清洁可显著降噪。", "visibleWhen": "drive" }, "visibleWhen": "drive" },\n',
+  '            { "key": "hs-brake", "type": "hotspot", "props": { "id": "brake", "label": "刹车系统", "body": "前刹贡献大部分制动力；湿滑路面请提前预留距离。", "visibleWhen": "brake" }, "visibleWhen": "brake" },\n',
+  '            { "key": "hs-wheel", "type": "hotspot", "props": { "id": "wheel", "label": "车轮系统", "body": "轮组强度与轮胎宽度权衡速度与舒适；检查辐条张力。", "visibleWhen": "wheel" }, "visibleWhen": "wheel" },\n',
+  '            { "key": "hs-frame", "type": "hotspot", "props": { "id": "frame", "label": "车架系统", "body": "车架材质（钢/铝/碳）影响重量与吸振；立管高度需匹配身高。", "visibleWhen": "frame" }, "visibleWhen": "frame" },\n',
+  '            { "key": "hs-gear", "type": "hotspot", "props": { "id": "gear", "label": "变速系统", "body": "爬坡用小盘大飞；平路大盘小飞。换挡时减轻踩踏力矩。", "visibleWhen": "gear" }, "visibleWhen": "gear" }\n',
+  '          ]\n        }\n',
+  '      ]\n    }\n',
+  '  ]\n}\n```\n',
+]
+
+type Mode = 'layout' | 'pending' | 'roast' | 'monitor' | 'people' | 'savings' | 'diagram' | 'progressive'
 
 function App() {
   const bridge = useMemo(() => {
@@ -79,7 +120,15 @@ function App() {
         ? PENDING_CHUNKS
         : mode === 'roast'
           ? ROAST_CHUNKS
-          : MONITOR_CHUNKS
+          : mode === 'monitor'
+            ? MONITOR_CHUNKS
+            : mode === 'people'
+              ? PEOPLE_CHUNKS
+              : mode === 'savings'
+                ? SAVINGS_CHUNKS
+                : mode === 'diagram'
+                  ? DIAGRAM_CHUNKS
+                  : []
 
   const pushLog = useCallback((line: string) => {
     setLog((L) => [line, ...L].slice(0, 12))
@@ -203,6 +252,138 @@ function App() {
     }
   }
 
+  const playPeopleSample = async () => {
+    clearForest()
+    setMode('people')
+    setLog(['人数→份量 slider'])
+    let text = ''
+    for (let i = 0; i < PEOPLE_CHUNKS.length; i++) {
+      text += PEOPLE_CHUNKS[i]
+      setBuf(text)
+      setChunk(i + 1)
+      await compileFrom(text, 'slider+bind 人数')
+      await new Promise((r) => setTimeout(r, 160))
+    }
+  }
+
+  const playSavingsSample = async () => {
+    clearForest()
+    setMode('savings')
+    setLog(['储蓄器 slider'])
+    let text = ''
+    for (let i = 0; i < SAVINGS_CHUNKS.length; i++) {
+      text += SAVINGS_CHUNKS[i]
+      setBuf(text)
+      setChunk(i + 1)
+      await compileFrom(text, 'slider+bind 储蓄')
+      await new Promise((r) => setTimeout(r, 160))
+    }
+  }
+
+
+
+  const playProgressiveSample = async () => {
+    clearForest()
+    setMode('progressive')
+    setLog(['先壳后补全：upsert 壳 → patchProps'])
+    // Stage 1: shell nodes (chart empty series, form field shell)
+    bridge.pushOps([
+      {
+        op: 'upsert',
+        node: {
+          key: 'prog-intro',
+          type: 'text',
+          props: { content: '渐进编译演示：先出壳，再补全数据。' },
+        },
+      },
+      {
+        op: 'upsert',
+        node: {
+          key: 'prog-row',
+          type: 'row',
+          props: { gap: 16, align: 'stretch', wrap: true },
+          children: [
+            {
+              key: 'prog-chart',
+              type: 'chart',
+              props: {
+                title: '近四周销量（加载中…）',
+                series: [{ name: '销量', points: [] }],
+              },
+            },
+            {
+              key: 'prog-form',
+              type: 'form',
+              props: {
+                local: true,
+                fields: [{ id: 'city', type: 'text', label: '城市' }],
+              },
+            },
+          ],
+        },
+      },
+    ])
+    prevKeys.current = new Set(['prog-intro', 'prog-row', 'prog-chart', 'prog-form'])
+    pushLog('阶段1：upsert 壳（chart 空 series + form 字段壳）')
+    setTick((t) => t + 1)
+    await new Promise((r) => setTimeout(r, 700))
+
+    // Stage 2: patchProps fills series + form fields (local state keys untouched)
+    bridge.pushOps([
+      {
+        op: 'patchProps',
+        key: 'prog-chart',
+        props: {
+          title: '近四周销量',
+          series: [
+            {
+              name: '销量',
+              points: [
+                { x: 'W1', y: 12 },
+                { x: 'W2', y: 18 },
+                { x: 'W3', y: 15 },
+                { x: 'W4', y: 22 },
+              ],
+            },
+          ],
+        },
+      },
+      {
+        op: 'patchProps',
+        key: 'prog-form',
+        props: {
+          fields: [
+            { id: 'city', type: 'text', label: '城市', placeholder: '上海' },
+            { id: 'plan', type: 'select', label: '方案', options: ['基础', '进阶', '企业'] },
+          ],
+          submitAction: 'save_prefs',
+          submitLabel: '保存偏好',
+        },
+      },
+      {
+        op: 'patchProps',
+        key: 'prog-intro',
+        props: { content: '渐进编译演示：壳已补全（patchProps，本地 state 不丢）。' },
+      },
+    ])
+    pushLog('阶段2：patchProps 补 series / fields')
+    setTick((t) => t + 1)
+  }
+
+  const playDiagramSample = async () => {
+    clearForest()
+    setMode('diagram')
+    setLog(['五系统图解 diagram'])
+    let text = ''
+    for (let i = 0; i < DIAGRAM_CHUNKS.length; i++) {
+      text += DIAGRAM_CHUNKS[i]
+      setBuf(text)
+      setChunk(i + 1)
+      await compileFrom(text, 'diagram+hotspot 五系统')
+      await new Promise((r) => setTimeout(r, 160))
+    }
+  }
+
   const persisted = useMemo(() => dumpSessionState(SESSION), [events, tick])
 
   return (
@@ -226,6 +407,18 @@ function App() {
         <button type="button" onClick={() => void playMonitorSample()}>
           监控卡 stat+table
         </button>
+        <button type="button" onClick={() => void playPeopleSample()}>
+          人数→份量
+        </button>
+        <button type="button" onClick={() => void playSavingsSample()}>
+          储蓄器
+        </button>
+        <button type="button" onClick={() => void playDiagramSample()}>
+          五系统图解
+        </button>
+        <button type="button" onClick={() => void playProgressiveSample()}>
+          先壳后补全
+        </button>
         <button type="button" onClick={() => void streamNext()}>
           下一步流式
         </button>
@@ -236,7 +429,21 @@ function App() {
           清空
         </button>
         <span className="meta">
-          {mode === 'layout' ? '完整 IR' : mode === 'pending' ? 'pending' : mode === 'roast' ? 'checklist' : 'stat+table'} · chunk {chunk}/{chunks.length}
+          {mode === 'layout'
+            ? '完整 IR'
+            : mode === 'pending'
+              ? 'pending'
+              : mode === 'roast'
+                ? 'checklist'
+                : mode === 'monitor'
+                  ? 'stat+table'
+                  : mode === 'people'
+                    ? '人数→份量'
+                    : mode === 'savings'
+                      ? '储蓄器'
+                      : mode === 'diagram'
+                        ? '五系统图解'
+                        : '先壳后补全'} · chunk {chunk}/{chunks.length}
         </span>
       </div>
       <div className="grid">

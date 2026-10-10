@@ -1,9 +1,11 @@
-import type { CSSProperties } from 'react'
+import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import type {
   ButtonProps,
   ChartProps,
   ChecklistProps,
+  DiagramProps,
   FormProps,
+  HotspotProps,
   IuiActionEvent,
   IuiNode,
   LayoutProps,
@@ -11,10 +13,13 @@ import type {
   TableProps,
   TextProps,
 } from '../types/ir'
+import { applyBinds } from '../ops/bind'
 import { ButtonView } from './Button'
 import { ChartView } from './Chart'
 import { ChecklistView } from './Checklist'
+import { DiagramView } from './Diagram'
 import { FormView } from './Form'
+import { HotspotView } from './Hotspot'
 import { StatView } from './Stat'
 import { TableView } from './Table'
 import { TextView } from './Text'
@@ -22,6 +27,10 @@ import { TextView } from './Text'
 export type RenderCtx = {
   sessionId: string
   onAction: (ev: IuiActionEvent) => void
+  onLocalValues?: (formKey: string, values: Record<string, string | number>) => void
+  /** diagramKey → selected region id (forest-level for visibleWhen). */
+  diagramSelected?: Record<string, string>
+  onDiagramSelect?: (diagramKey: string, selectedId: string) => void
 }
 
 const ALIGN_MAP: Record<NonNullable<LayoutProps['align']>, string> = {
@@ -43,6 +52,23 @@ function isMountable(n: IuiNode): boolean {
   return n.type !== 'pending' && n.type !== 'none'
 }
 
+function visibleWhenId(node: IuiNode): string | undefined {
+  if (typeof node.visibleWhen === 'string' && node.visibleWhen) return node.visibleWhen
+  if (node.type === 'hotspot') {
+    const p = node.props as HotspotProps
+    if (typeof p.visibleWhen === 'string' && p.visibleWhen) return p.visibleWhen
+  }
+  return undefined
+}
+
+function isVisible(node: IuiNode, ctx: RenderCtx): boolean {
+  const when = visibleWhenId(node)
+  if (!when) return true
+  // hotspot/text with visibleWhen: show only when some diagram has that region selected
+  const selected = ctx.diagramSelected ?? {}
+  return Object.values(selected).includes(when)
+}
+
 function LayoutItem({
   child,
   parentType,
@@ -52,6 +78,8 @@ function LayoutItem({
   parentType: 'row' | 'col'
   ctx: RenderCtx
 }) {
+  if (!isVisible(child, ctx)) return null
+
   const lp = (child.props ?? {}) as LayoutProps
   const isLeafCtrl = child.type === 'button'
   const grow = lp.grow ?? (parentType === 'row' ? (isLeafCtrl ? 0 : 1) : undefined)
@@ -75,6 +103,7 @@ function LayoutItem({
 
 export function NodeView({ node, ctx }: { node: IuiNode; ctx: RenderCtx }) {
   if (!isMountable(node)) return null
+  if (!isVisible(node, ctx)) return null
 
   if (node.type === 'chart') {
     return (
@@ -91,6 +120,7 @@ export function NodeView({ node, ctx }: { node: IuiNode; ctx: RenderCtx }) {
           sessionId={ctx.sessionId}
           props={node.props as FormProps}
           onAction={ctx.onAction}
+          onLocalValues={ctx.onLocalValues}
         />
       </div>
     )
@@ -139,6 +169,26 @@ export function NodeView({ node, ctx }: { node: IuiNode; ctx: RenderCtx }) {
       </div>
     )
   }
+  if (node.type === 'diagram') {
+    return (
+      <div data-iui-type="diagram" data-iui-key={node.key} className="iui-node">
+        <DiagramView
+          nodeKey={node.key}
+          sessionId={ctx.sessionId}
+          props={node.props as DiagramProps}
+          onAction={ctx.onAction}
+          onDiagramSelect={ctx.onDiagramSelect}
+        />
+      </div>
+    )
+  }
+  if (node.type === 'hotspot') {
+    return (
+      <div data-iui-type="hotspot" data-iui-key={node.key} className="iui-node">
+        <HotspotView props={node.props as HotspotProps} />
+      </div>
+    )
+  }
   if (node.type === 'row' || node.type === 'col') {
     const lp = (node.props ?? {}) as LayoutProps
     const gap = lp.gap ?? 12
@@ -175,10 +225,47 @@ export function IuiForest({
   sessionId: string
   onAction: (ev: IuiActionEvent) => void
 }) {
+  const [formValues, setFormValues] = useState<Record<string, string | number>>({})
+  const [diagramSelected, setDiagramSelected] = useState<Record<string, string>>({})
+
+  const onLocalValues = useCallback(
+    (_formKey: string, values: Record<string, string | number>) => {
+      setFormValues((prev) => {
+        let changed = false
+        const next = { ...prev }
+        for (const [k, v] of Object.entries(values)) {
+          if (next[k] !== v) {
+            next[k] = v
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    },
+    [],
+  )
+
+  const onDiagramSelect = useCallback((diagramKey: string, selectedId: string) => {
+    setDiagramSelected((prev) => {
+      if (prev[diagramKey] === selectedId) return prev
+      return { ...prev, [diagramKey]: selectedId }
+    })
+  }, [])
+
+  const displayRoots = useMemo(
+    () => applyBinds(roots, formValues),
+    [roots, formValues],
+  )
+
+  const ctx: RenderCtx = useMemo(
+    () => ({ sessionId, onAction, onLocalValues, diagramSelected, onDiagramSelect }),
+    [sessionId, onAction, onLocalValues, diagramSelected, onDiagramSelect],
+  )
+
   return (
     <div className="iui-root">
-      {roots.filter(isMountable).map((n) => (
-        <NodeView key={n.key} node={n} ctx={{ sessionId, onAction }} />
+      {displayRoots.filter(isMountable).map((n) => (
+        <NodeView key={n.key} node={n} ctx={ctx} />
       ))}
     </div>
   )

@@ -201,3 +201,79 @@
 .iui-table tbody tr:last-child td {
   border-bottom: none;
 }
+.iui-field-slider input[type='range'] {
+  width: 100%;
+  accent-color: #2563eb;
+  height: 6px;
+  cursor: pointer;
+}
+.iui-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.iui-slider-head label {
+  font-size: 12px;
+  color: #64748b;
+}
+.iui-slider-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.iui-slider-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.iui-diagram-canvas {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.iui-diagram-canvas svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.iui-diagram-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.iui-diagram-panel.is-empty {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.iui-diagram-panel-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 4px;
+}
+.iui-diagram-panel-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+}
+.iui-hotspot-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+.iui-hotspot-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #475569;
+}

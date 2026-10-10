@@ -1,5 +1,7 @@
-import type { IuiNode, IuiOp, IuiPayload, IuiType } from '../types/ir'
+import type { IuiNode, IuiOp, IuiPayload, IuiProps, IuiType } from '../types/ir'
 import { decideType, isLayoutType, type DecideTypeOptions } from './jev'
+import { isPayloadReady } from './ready'
+import { sanitizePayload } from './validate'
 
 export type CompileOptions = DecideTypeOptions & {
   confidenceThreshold?: number
@@ -12,7 +14,39 @@ export type CompileOptions = DecideTypeOptions & {
   mainModelFallback?: (payload: IuiPayload) => Promise<IuiType | null> | IuiType | null
 }
 
-const RENDERABLE = new Set<IuiType>(['chart', 'form', 'button', 'row', 'col', 'text', 'checklist', 'stat', 'table'])
+/** Tracks keys already upserted and last props snapshot for patchProps diffs. */
+export type CompileState = {
+  keys: Set<string>
+  propsByKey: Map<string, string>
+}
+
+export function emptyCompileState(): CompileState {
+  return { keys: new Set(), propsByKey: new Map() }
+}
+
+function asCompileState(prev: Set<string> | CompileState): CompileState {
+  if (prev instanceof Set) {
+    return { keys: new Set(prev), propsByKey: new Map() }
+  }
+  return {
+    keys: new Set(prev.keys),
+    propsByKey: new Map(prev.propsByKey),
+  }
+}
+
+const RENDERABLE = new Set<IuiType>([
+  'chart',
+  'form',
+  'button',
+  'row',
+  'col',
+  'text',
+  'checklist',
+  'stat',
+  'table',
+  'diagram',
+  'hotspot',
+])
 
 function whitelistType(type: IuiType): IuiType | 'none' {
   if (type === 'pending') return 'none'
@@ -25,18 +59,9 @@ function hasConcreteType(type: IuiType | undefined): type is IuiType {
 }
 
 async function resolveType(payload: IuiPayload, opts: CompileOptions): Promise<IuiType> {
-  // Layout: main model owns type; never Jev.
   if (isLayoutType(payload.type)) return payload.type as IuiType
-
-  // Valid concrete type from main model — never overwrite.
-  if (hasConcreteType(payload.type)) {
-    return payload.type
-  }
-
-  // Missing / pending / unknown: only Jev when explicitly enabled.
-  if (!opts.jevEnabled) {
-    return 'none'
-  }
+  if (hasConcreteType(payload.type)) return payload.type
+  if (!opts.jevEnabled) return 'none'
 
   const threshold = opts.confidenceThreshold ?? 0.7
   const decided = await decideType(payload, opts)
@@ -44,74 +69,161 @@ async function resolveType(payload: IuiPayload, opts: CompileOptions): Promise<I
   if (decided.source === 'layout-passthrough' && isLayoutType(payload.type) && payload.type) {
     return payload.type
   }
-
   if (decided.confidence >= threshold && decided.choice !== 'none') {
     return decided.choice as IuiType
   }
+  if (decided.choice === 'none' && decided.confidence >= threshold) return 'none'
 
-  if (decided.choice === 'none' && decided.confidence >= threshold) {
-    return 'none'
-  }
-
-  // Low confidence → main-model fallback once.
   const fb = opts.mainModelFallback ? await opts.mainModelFallback(payload) : null
   if (fb && RENDERABLE.has(fb)) return fb
-
-  // Still low / failed → degrade to plain text (non-blocking) when Jev path is on.
   return 'text'
 }
 
-async function resolveNode(payload: IuiPayload, opts: CompileOptions): Promise<IuiNode | null> {
-  const type = whitelistType(await resolveType(payload, opts))
-  if (type === 'none') return null
-
-  let children: IuiNode[] | undefined
-  if (payload.children?.length) {
-    const resolved = await Promise.all(payload.children.map((c) => resolveNode(c, opts)))
-    children = resolved.filter((n): n is IuiNode => n !== null)
-  }
-
-  return {
-    key: payload.key,
-    type,
-    props: payload.props,
-    children,
+function snapshotProps(props: IuiProps): string {
+  try {
+    return JSON.stringify(props)
+  } catch {
+    return ''
   }
 }
 
-/** Compile payload roots into ops. Jev only when opts.jevEnabled. */
+function propsDelta(prevJson: string | undefined, next: IuiProps): IuiProps | null {
+  if (!prevJson) return next
+  let prev: Record<string, unknown> = {}
+  try {
+    prev = JSON.parse(prevJson) as Record<string, unknown>
+  } catch {
+    return next
+  }
+  const n = next as Record<string, unknown>
+  const delta: Record<string, unknown> = {}
+  let changed = false
+  for (const k of Object.keys(n)) {
+    if (JSON.stringify(prev[k]) !== JSON.stringify(n[k])) {
+      delta[k] = n[k]
+      changed = true
+    }
+  }
+  return changed ? (delta as IuiProps) : null
+}
+
+async function resolveNode(
+  payload: IuiPayload,
+  opts: CompileOptions,
+): Promise<IuiNode | null> {
+  const clean = sanitizePayload(payload)
+  if (!clean) return null
+
+  const type = whitelistType(await resolveType(clean, opts))
+  if (type === 'none') return null
+  // Layout shells may hang before children; leaf types need ready props.
+  if (!isPayloadReady(clean, type)) return null
+
+  let children: IuiNode[] | undefined
+  if (clean.children?.length) {
+    const resolved = await Promise.all(clean.children.map((c) => resolveNode(c, opts)))
+    children = resolved.filter((n): n is IuiNode => n !== null)
+  }
+
+  const binds = [
+    ...(clean.bind ? (Array.isArray(clean.bind) ? clean.bind : [clean.bind]) : []),
+    ...(clean.binds ?? []),
+  ]
+
+  return {
+    key: clean.key,
+    type,
+    props: clean.props,
+    children,
+    ...(binds.length === 1
+      ? { bind: binds[0] }
+      : binds.length
+        ? { bind: binds }
+        : {}),
+    ...(typeof clean.visibleWhen === 'string' && clean.visibleWhen
+      ? { visibleWhen: clean.visibleWhen }
+      : {}),
+  }
+}
+
+function trackTree(node: IuiNode, nextKeys: Set<string>, nextProps: Map<string, string>): void {
+  nextKeys.add(node.key)
+  nextProps.set(node.key, snapshotProps(node.props))
+  node.children?.forEach((c) => trackTree(c, nextKeys, nextProps))
+}
+
+function collectOpsForTree(
+  node: IuiNode,
+  state: CompileState,
+  ops: IuiOp[],
+  nextKeys: Set<string>,
+  nextProps: Map<string, string>,
+): void {
+  if (!state.keys.has(node.key)) {
+    // First hang: upsert full node (ready children nested when present).
+    ops.push({ op: 'upsert', node })
+    trackTree(node, nextKeys, nextProps)
+    return
+  }
+
+  // Already hung: patch props only (preserves local client state).
+  nextKeys.add(node.key)
+  const snap = snapshotProps(node.props)
+  nextProps.set(node.key, snap)
+  const delta = propsDelta(state.propsByKey.get(node.key), node.props)
+  if (delta) ops.push({ op: 'patchProps', key: node.key, props: delta })
+
+  for (const child of node.children ?? []) {
+    collectOpsForTree(child, state, ops, nextKeys, nextProps)
+  }
+}
+
+/** Compile payload roots into ops. Existing keys → patchProps; new → upsert. */
 export async function compilePayloadsToOps(
   payloads: IuiPayload[],
-  prevKeys: Set<string> = new Set(),
+  prevKeys: Set<string> | CompileState = new Set(),
   opts: CompileOptions = {},
-): Promise<{ ops: IuiOp[]; keys: Set<string> }> {
+): Promise<{
+  ops: IuiOp[]
+  keys: Set<string>
+  propsByKey: Map<string, string>
+  state: CompileState
+}> {
+  const state = asCompileState(prevKeys)
+  const ops: IuiOp[] = []
+  const nextKeys = new Set<string>()
+  const nextProps = new Map<string, string>()
+
   const nodes = (
     await Promise.all(payloads.map((p) => resolveNode(p, opts)))
   ).filter((n): n is IuiNode => n !== null)
 
-  const nextKeys = new Set<string>()
-  const walk = (n: IuiNode) => {
-    nextKeys.add(n.key)
-    n.children?.forEach(walk)
+  for (const node of nodes) {
+    collectOpsForTree(node, state, ops, nextKeys, nextProps)
   }
-  nodes.forEach(walk)
 
-  const ops: IuiOp[] = nodes.map((node) => ({ op: 'upsert' as const, node }))
-
-  for (const k of prevKeys) {
+  for (const k of state.keys) {
     if (!nextKeys.has(k)) ops.push({ op: 'remove', key: k })
   }
 
-  return { ops, keys: nextKeys }
+  const newState: CompileState = { keys: nextKeys, propsByKey: nextProps }
+  return { ops, keys: nextKeys, propsByKey: nextProps, state: newState }
 }
 
-/** Incremental: given streaming buffer + previous key set, emit new ops batch. */
+/** Incremental: progressive parse + upsert/patchProps. */
 export async function compileStreamBuffer(
   buffer: string,
-  prevKeys: Set<string>,
+  prevKeys: Set<string> | CompileState,
   opts: CompileOptions,
-  parseStreamingPayloads: (buf: string) => IuiPayload[],
-): Promise<{ ops: IuiOp[]; keys: Set<string> }> {
-  const payloads = parseStreamingPayloads(buffer)
+  parsePayloads: (buf: string) => IuiPayload[],
+): Promise<{
+  ops: IuiOp[]
+  keys: Set<string>
+  propsByKey: Map<string, string>
+  state: CompileState
+}> {
+  const payloads = parsePayloads(buffer)
   return compilePayloadsToOps(payloads, prevKeys, opts)
 }
+
+export { isPayloadReady } from './ready'

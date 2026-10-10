@@ -1,7 +1,7 @@
 import { createHostBridge } from './bridge'
-import { compilePayloadsToOps } from './compile'
+import { compilePayloadsToOps, emptyCompileState } from './compile'
 import { DSH_IUI_ACTION_EVENT, DSH_IUI_OPS_EVENT, type DshIuiOpsEventData } from './events'
-import { parseStreamingPayloads } from './parseFence'
+import { parseProgressivePayloads } from './parseFence'
 import {
   DSH_IUI_SKILL_DESCRIPTION,
   DSH_IUI_SKILL_NAME,
@@ -63,7 +63,7 @@ export function apply(ctx: unknown, options: HostPluginOptions = {}): void {
   const c = ctx as LooseCtx
   const sessionId = options.getSessionId?.() ?? 'default'
   const bridge = createHostBridge(sessionId)
-  let prevKeys = new Set<string>()
+  let compileState = emptyCompileState()
   const hostState: Record<string, SessionStateSlice> = {}
   /** Avoid re-compiling the same assistant message. */
   const seenMessages = new Set<string>()
@@ -73,14 +73,14 @@ export function apply(ctx: unknown, options: HostPluginOptions = {}): void {
     text: string,
     meta: { turn?: number; step?: number; sourceMessageId?: string } = {},
   ) => {
-    const payloads = parseStreamingPayloads(text)
+    const payloads = parseProgressivePayloads(text)
     if (!payloads.length) return
-    const { ops, keys } = await compilePayloadsToOps(payloads, prevKeys, {
+    const { ops, state } = await compilePayloadsToOps(payloads, compileState, {
       confidenceThreshold: options.confidenceThreshold ?? 0.7,
       jevEnabled: options.jevEnabled === true,
       intentSummary: '',
     })
-    prevKeys = keys
+    compileState = state
     if (!ops.length) return
 
     bridge.pushOps(ops)
@@ -243,4 +243,4 @@ export function apply(ctx: unknown, options: HostPluginOptions = {}): void {
   console.info('[dsh-iui-host] loaded (provide dshIui + session ops + action steer)')
 }
 
-export { createHostBridge, compilePayloadsToOps, parseStreamingPayloads }
+export { createHostBridge, compilePayloadsToOps, parseProgressivePayloads }

@@ -1,8 +1,20 @@
-export { extractCompleteFences, parsePayloadRoots, parseStreamingPayloads } from './parseFence'
+export {
+  extractCompleteFences,
+  extractOpenFenceBody,
+  extractCompleteJsonObjects,
+  parsePayloadRoots,
+  parseStreamingPayloads,
+  parseProgressivePayloads,
+} from './parseFence'
 export { decideType, heuristicPick, isLayoutType } from './jev'
 export type { JevChoice, JevDecideResult, DecideTypeOptions } from './jev'
-export { compilePayloadsToOps, compileStreamBuffer } from './compile'
-export type { CompileOptions } from './compile'
+export {
+  compilePayloadsToOps,
+  compileStreamBuffer,
+  emptyCompileState,
+  isPayloadReady,
+} from './compile'
+export type { CompileOptions, CompileState } from './compile'
 export {
   formatActionForContext,
   formatStateForContext,
@@ -23,3 +35,19 @@ export { apply as applyHost, name as hostPluginName } from './plugin'
 export { textFromContent } from './text'
 export { DSH_IUI_OPS_EVENT, DSH_IUI_ACTION_EVENT } from './events'
 export type { DshIuiOpsEventData, DshIuiActionEventData } from './events'
+
+export {
+  sanitizeSliderField,
+  sanitizeFormFields,
+  sanitizeBind,
+  sanitizeBinds,
+  sanitizePayload,
+  parseLinearBind,
+  evalLinearBind,
+  fieldKey,
+  fieldKind,
+  isSafeDiagramSrc,
+  sanitizeRegion,
+  sanitizeDiagramProps,
+  sanitizeHotspotProps,
+} from './validate'

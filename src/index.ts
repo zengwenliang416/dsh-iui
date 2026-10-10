@@ -1,5 +1,6 @@
 export type * from './types/ir'
-export { applyOps, cloneNode, indexTree } from './ops/tree'
+export { applyOps, cloneNode, indexTree, mergeProps, mergeUpsertNode } from './ops/tree'
+export { applyBinds, parseLinearBind, evalLinearBind } from './ops/bind'
 export { loadState, saveState, dumpSessionState } from './state/sessionStore'
 export { IuiForest, NodeView } from './components/Node'
 export { COMPONENT_WHITELIST, isRenderableType, registryTypes } from './components/registry'

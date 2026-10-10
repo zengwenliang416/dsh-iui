@@ -31,6 +31,19 @@ dsh plugin --profile web add ./dsh-iui
 完整 `conversation.chat.node` slot 注册需与宿主 ops 桥对接后启用（见 `src/client/plugin.ts`）。
 
 
+
+## 从 Git 安装（dsh / pnpm）
+
+仓库已提交预构建 `lib/`，**没有** `prepare` 生命周期脚本，pnpm 无需 `allowBuilds`。
+
+```bash
+dsh plugin --profile desktop add https://github.com/zengwenliang416/dsh-iui.git
+# 或本地路径：
+# git clone https://github.com/zengwenliang416/dsh-iui.git && cd dsh-iui && dsh plugin --profile desktop add "$(pwd)"
+```
+
+改源码后本地执行 `npm run build`，再把 `lib/` 一并提交。
+
 ## 宿主（后端）
 
 同仓 `src/host`：

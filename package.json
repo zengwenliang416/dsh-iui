@@ -27,8 +27,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "smoke:host": "tsx scripts/smoke-host.mjs",
-    "smoke:bridge": "tsx scripts/smoke-bridge.mjs",
-    "prepare": "npm run build"
+    "smoke:bridge": "tsx scripts/smoke-bridge.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

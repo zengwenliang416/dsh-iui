@@ -1,5 +1,6 @@
 node_modules/
-lib/
+# lib/ is published for git installs (no prepare/build scripts)
+# lib/
 dist/
 dist-ssr/
 .vite/

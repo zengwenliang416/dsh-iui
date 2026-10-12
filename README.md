@@ -44,6 +44,8 @@ dsh plugin --profile desktop add https://github.com/zengwenliang416/dsh-iui.git
 
 改源码后本地执行 `npm run build`，再把 `lib/` 一并提交。
 
+> 运行时只加载 `lib/host/bundle.js` / `lib/client/bundle.js`（经 `index.js` re-export）。不要读 `lib/**/compile.js` 等残留单文件——它们可能过期；以 bundle 为准。
+
 ## 宿主（后端）
 
 同仓 `src/host`：

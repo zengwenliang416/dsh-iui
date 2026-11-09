@@ -1,18 +1,5 @@
 node_modules/
-# lib/ is published for git installs (no prepare/build scripts)
-# lib/
-dist/
-dist-ssr/
-.vite/
-*.tsbuildinfo
-*.local
-.env
-.env.*
-!.env.example
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.DS_Store
-coverage/
-.eslintcache
+lib/
+island/node_modules/
+island/dist/
+src/client/island-assets.generated.ts

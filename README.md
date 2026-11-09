@@ -1,115 +1,90 @@
-# dsh-iui（前端）
+# dsh-iui
 
-对标 OpenAI Intelligent UI 的 DSH 自建插件 **前端侧**：白名单组件库、流式 `ops` 渲染、本地会话状态。
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的智能界面（Intelligent UI）插件。模型回答时，可以额外给出结构化的内容块（content block），插件把它们渲染成回复下方的交互卡片。每个内容块具体用哪种组件展示，由规则决定；配置了 [TypeSafe Jev](https://typesafe.ai) 后改由 Jev 决定。
 
-## 范围（本期）
+这是一个纯插件，不修改 DSH 源码。
 
-- 组件：`chart` / `form` / `button` / `row` / `col` / `text`
-- `pending` / `none` 不挂树
-- ops：`upsert` | `patchProps` | `remove`
-- 事件：`{ type: "action", key, action, payload }`
-- 状态：`localStorage`，键 `会话 + block key`
+## 工作方式
 
-Jev 选 type、增量编译在**后端（插件宿主）**；本包只消费已填完整 `type` 的 ops。
+1. **模型给出语义内容。** 模型调用 `render_ui`，给出 summary、comparison、calculator、calendar 等内容块，只描述内容，不描述布局。字段说明由 `ui_reference` 工具按需提供，所以常驻系统提示只有几句话。
+2. **宿主校验。** 插件按字段 schema 和跨字段规则校验每个内容块，例如对比项要覆盖全部属性、公式只能引用输入项、日期必须是真实存在的日期。不通过时，带路径的错误信息返回给模型，由模型修正后重试。
+3. **决定组件。** 每个内容块都有若干候选组件，例如 chart 可以是 bar、line、area 或 scatter。配置了 Jev 时由 Jev 选择；Jev 不可用或置信度不足时，由规则选择。
+4. **在沙箱中渲染。** 卡片在 `sandbox="allow-scripts"` 的 iframe 中用 React 19 和 [Astryx](https://github.com/meta/astryx) 渲染，iframe 的 CSP 禁止一切网络请求。点击链接时由外层页面在新标签页打开，只允许 http/https 地址。卡片上的交互状态（选项、输入值、勾选、日期）按会话保存在浏览器本地。
 
-## 本地演示
+## 内容块
 
-```bash
-cd dsh-iui
-npm install
-npm run dev
+共 25 类内容块、57 个组件变体：
+
+| 内容块 | 候选组件 |
+|---|---|
+| summary | callout、card |
+| notice | banner、inline |
+| comparison | table、card-grid |
+| choice | segmented、option-cards、radio-list |
+| calculator | sliders、number-fields |
+| steps | stepper、numbered-list、accordion |
+| metrics | stat-cards、metadata、progress |
+| checklist | checkbox-list、cards |
+| faq | accordion、list |
+| sections | tabs、radio-list、accordion |
+| chart | bar、line、area、scatter |
+| code | code-block、numbered |
+| quote | blockquote、card |
+| tags | tokens、badges |
+| text | markdown、compact |
+| timeline | vertical-steps、dated-list |
+| tree | tree、nested-list |
+| gallery | carousel、grid |
+| glossary | metadata、infotips、list |
+| shortcuts | table、list |
+| sources | citations、links |
+| status | dots、badges |
+| timer | countdown、stopwatch |
+| people | list、cards |
+| calendar | calendar、agenda |
+
+## 安装
+
+需要 Node.js 24.9 或更高版本，以及 DSH 0.2.2 或更高版本。
+
+```sh
+dsh plugin --profile <profile> add @zengwenliang416/dsh-iui
+dsh <profile>
 ```
 
-打开终端打印的地址，点「自动流式播放」即可验收三件套 + 事件 + 刷新后表单值仍在。
+插件的 `cordis.patch.yml` 会在 profile 根部插入 `dsh-iui`，`render_ui` 和 `ui_reference` 随之进入全局工具层。
 
-## 接入 DSH
+## 配置
 
-```bash
-dsh plugin --profile web add ./dsh-iui
+不配置也可以使用，此时由规则决定组件。启用 Jev 时，先设置环境变量 `TYPESAFE_API_KEY`，再按需在 profile 的 `cordis.yml` 中调整以下参数：
+
+```yaml
+dsh-iui:
+  jev:
+    enabled: true            # 设为 false 时始终使用规则
+    endpoint: https://api.typesafe.ai/v1/systemone
+    model: jev-latest
+    apiKeyEnv: TYPESAFE_API_KEY
+    timeoutMs: 4000
+    minConfidence: 0.5       # Jev 置信度低于该值时改用规则
 ```
 
-完整 `conversation.chat.node` slot 注册需与宿主 ops 桥对接后启用（见 `src/client/plugin.ts`）。
+启用 Jev 后，卡片的标题和内容块会发送给 TypeSafe 用于决策。不希望内容离开本机时，把 `enabled` 设为 `false`。
 
+## 开发
 
-
-## 从 Git 安装（dsh / pnpm）
-
-仓库已提交预构建 `lib/`，**没有** `prepare` 生命周期脚本，pnpm 无需 `allowBuilds`。
-
-```bash
-dsh plugin --profile desktop add https://github.com/zengwenliang416/dsh-iui.git
-# 或本地路径：
-# git clone https://github.com/zengwenliang416/dsh-iui.git && cd dsh-iui && dsh plugin --profile desktop add "$(pwd)"
+```sh
+pnpm install && pnpm --dir island install
+pnpm run build       # 构建沙箱渲染器并嵌入，然后构建插件
+pnpm run typecheck
+pnpm run test
+pnpm run gallery -- /tmp/iui-gallery light   # 把全部组件变体渲染成一张截图（首次运行前先执行 npx playwright install chromium）
 ```
 
-改源码后本地执行 `npm run build`，再把 `lib/` 一并提交。
+本地调试时，用 `dsh plugin --profile <profile> add <本仓库路径>` 链接插件；修改并重新构建后，刷新页面即可生效。
 
-> 运行时只加载 `lib/host/bundle.js` / `lib/client/bundle.js`（经 `index.js` re-export）。不要读 `lib/**/compile.js` 等残留单文件——它们可能过期；以 bundle 为准。
+`scripts/render-cards.mjs` 从会话记录中取出卡片并按完整高度截图。`scripts/demo.mjs` 对一个运行中的 DSH 服务录制端到端演示。
 
-## 宿主（后端）
+## 许可
 
-同仓 `src/host`：
-
-- skill：教主模型出 `dsh-iui` payload（`type` 可 `pending`）
-- Jev 闸门：按块选 `chart|form|button|text|none`；无 `JEV_API_KEY` 时用 props 形状启发式
-- 置信度 `< 0.7` → 可选主模型回退 → 再失败降级 `text`
-- 编译出 `upsert` / `remove` ops，经 `createHostBridge` 推给前端
-- action / session-state 写回会话上下文
-
-本地冒烟：
-
-```bash
-node --experimental-strip-types scripts/smoke-host.mjs
-```
-
-## 前后端桥（已对齐）
-
-进程内：`createHostBridge` → `pushOps` / `onOps` + `emitAction` / `onAction`。
-
-```bash
-npm run smoke:bridge   # 宿主 fence→Jev→ops→applyOps 森林 + action 回传
-```
-
-演示页已改为走同一条链路（不再手写假 ops）。
-
-真机 `conversation.chat.node`：client `apply` 在 slots API 可用时软注册 `id: dsh-iui`，渲染侧用 `IuiMount` + `attachBridge(ctx.dshIui.bridge)`。缺真实 DSH profile 时以 smoke + Vite 演示验收。
-
-## 真机安装（web profile）草案
-
-前置：本机已能 `dsh web`；本仓库 `npm install` 完成。
-
-```bash
-# 1) 装进 web profile（路径用绝对路径）
-dsh plugin --profile web add /workspace/dsh-iui
-
-# 2) 可选：Jev 真闸门（不设则走 props 启发式）
-export JEV_API_KEY=jv_live_xxx
-
-# 3) 启动（若需 overlay，按 DSH 文档用 --patch）
-dsh web
-```
-
-加载顺序约定：宿主 `dsh-iui-host`（`src/host/plugin.ts`）先挂 `ctx.dshIui.bridge`，客户端 `dsh-iui-client`（`src/client/plugin.ts`）再 `attachBridge`。会话里应能加载 skill `dsh-iui`；模型出 ` ```dsh-iui ` fence 后走编译→ops→slot。
-
-验收本地仍用：`npm run smoke:bridge` + `npm run dev`。
-
-## 真机状态
-
-- 已 `dsh plugin --profile web add /workspace/dsh-iui`，bundle 在 profile 中
-- 宿主 fiber：`provide('dshIui')` 已激活；客户端 inject 在同进程冒烟可通过
-- **跨进程**：Client 已接 `dsh-iui/ops` match + `conversation.chat.node`；需重启 `dsh web` 验真机槽位
-- 当前可看效果：Vite 演示 http://127.0.0.1:5173/
-- `dsh web` 已起：http://127.0.0.1:3080/（插件已加载；聊天内嵌 UI 需补 wire）
-
-需要 Node ≥ 22 跑官方 dsh CLI。
-
-## 真机过线（宿主事件）
-
-宿主在 `assistant/message` 结算后编译 fence，并往当前 Session 追加：
-
-- `dsh-iui/ops`：`{ sessionKey, turn?, step?, ops, sourceMessageId? }` — Web Client 用 `uiConversation.events.register`（`conversationEvents.match`）认这个事件
-- Client 挂 `conversation.chat.node`，`key: dsh-iui`，渲染 `IuiForest`
-- `dsh-iui/action`：点击/提交后写入；宿主 `followup`/`steer` 带上 `[dsh-iui action]` 催续聊
-- 状态变更：`agent.inject` 注入 `[dsh-iui session-state]`
-
-改完后需重启 `dsh web` 才会加载新 bundle。
+MIT。沙箱渲染器打包了第三方代码，其许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

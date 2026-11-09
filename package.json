@@ -1,71 +1,93 @@
 {
-  "name": "dsh-iui",
+  "name": "@zengwenliang416/dsh-iui",
   "version": "0.1.0",
-  "private": true,
+  "description": "Intelligent UI for DeepSeek Harness: semantic content blocks rendered as interactive cards, with optional Jev component decisions",
+  "license": "MIT",
+  "author": "zengwenliang416",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zengwenliang416/dsh-iui.git"
+  },
+  "homepage": "https://github.com/zengwenliang416/dsh-iui#readme",
+  "bugs": {
+    "url": "https://github.com/zengwenliang416/dsh-iui/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "intelligent-ui",
+    "generative-ui",
+    "astryx"
+  ],
+  "engines": {
+    "node": ">=24.9"
+  },
   "type": "module",
-  "main": "./lib/index.js",
-  "types": "./lib/index.d.ts",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./client": {
-      "types": "./lib/client/index.d.ts",
-      "default": "./lib/client/index.js"
-    },
-    "./host": {
-      "types": "./lib/host/index.d.ts",
-      "default": "./lib/host/index.js"
-    },
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.json --emitDeclarationOnly && esbuild src/host/index.ts --bundle --platform=neutral --format=esm --outfile=lib/host/bundle.js --packages=external && esbuild src/client/index.ts --bundle --platform=neutral --format=esm --outfile=lib/client/bundle.js --packages=external && node scripts/write-entries.mjs",
-    "preview": "vite preview",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "smoke:host": "tsx scripts/smoke-host.mjs",
-    "smoke:bridge": "tsx scripts/smoke-bridge.mjs"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/node": "^26.6.4",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "esbuild": "^0.28.2",
-    "tsx": "^4.23.15",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.10"
-  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "platform": "web",
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-chat",
-        "@deepseek-ai/dsh-api-session-controller",
-        "@deepseek-ai/dsh-api-remotes"
-      ]
+      "platform": "web"
     }
   },
-  "files": [
-    "lib",
-    "skills",
-    "cordis.patch.yml",
-    "README.md"
-  ],
+  "scripts": {
+    "build:island": "pnpm --dir island run build && node scripts/embed-island.mjs",
+    "build": "pnpm run build:island && tsdown",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.client.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "gallery": "node scripts/gallery.mjs"
+  },
   "peerDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-client-ui-chat": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-theme": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-tool": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-system-prompt": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "^3.19.0",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "jsdom": "^31.0.0",
+    "playwright": "1.61.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsdown": "^0.23.7",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

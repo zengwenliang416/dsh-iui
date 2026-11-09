@@ -1,0 +1,22 @@
+{
+  "name": "@zengwenliang416/dsh-iui-island",
+  "private": true,
+  "type": "module",
+  "description": "Isolated React 19 + Astryx renderer bundled into the dsh-iui card iframe",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@astryxdesign/charts": "0.7.12-canary.7cc9340",
+    "@astryxdesign/core": "0.7.12-canary.7cc9340",
+    "@stylexjs/stylex": "^0.19.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}
